@@ -1,31 +1,63 @@
 #include "philosophers.h"
 
-void	philo_eat(t_philo *philo)
+void philo_eat(t_philo *philo)
 {
-	pthread_mutex_lock(philo->left_fork);
-	if (safe_print(philo, "has taken a fork")) {
-		pthread_mutex_unlock(philo->left_fork);
-		return;
-	}
-	pthread_mutex_lock(philo->right_fork);
-	if (safe_print(philo, "has taken a fork")) {
-		pthread_mutex_unlock(philo->right_fork);
-		pthread_mutex_unlock(philo->left_fork);
-		return;
-	}
-	if (safe_print(philo, "is eating")) {
-		pthread_mutex_unlock(philo->right_fork);
-		pthread_mutex_unlock(philo->left_fork);
-		return;
-	}
-	philo->last_meal_time = get_timestamp_ms();
-	smart_sleep(philo->data->args.time_to_eat, philo->data);
+    pthread_mutex_lock(philo->left_fork);
+    if (safe_print(philo, "has taken a fork")) {
+        pthread_mutex_unlock(philo->left_fork);
+        return;
+    }
+    pthread_mutex_lock(philo->right_fork);
+    if (safe_print(philo, "has taken a fork")) {
+        pthread_mutex_unlock(philo->right_fork);
+        pthread_mutex_unlock(philo->left_fork);
+        return;
+    }
+    if (safe_print(philo, "is eating")) {
+        pthread_mutex_unlock(philo->right_fork);
+        pthread_mutex_unlock(philo->left_fork);
+        return;
+    }
 
-	philo->meals_eaten++;
+    // Update the last meal time
+    pthread_mutex_lock(&philo->data->finish_mutex);
+    philo->last_meal_time = get_timestamp_ms();
+    pthread_mutex_unlock(&philo->data->finish_mutex);
 
-	pthread_mutex_unlock(philo->right_fork);
-	pthread_mutex_unlock(philo->left_fork);
+    smart_sleep(philo->data->args.time_to_eat, philo->data);
+
+    philo->meals_eaten++;
+
+    pthread_mutex_unlock(philo->right_fork);
+    pthread_mutex_unlock(philo->left_fork);
 }
+
+// void	philo_eat(t_philo *philo)
+// {
+// 	pthread_mutex_lock(philo->left_fork);
+// 	if (safe_print(philo, "has taken a fork")) {
+// 		pthread_mutex_unlock(philo->left_fork);
+// 		return;
+// 	}
+// 	pthread_mutex_lock(philo->right_fork);
+// 	if (safe_print(philo, "has taken a fork")) {
+// 		pthread_mutex_unlock(philo->right_fork);
+// 		pthread_mutex_unlock(philo->left_fork);
+// 		return;
+// 	}
+// 	if (safe_print(philo, "is eating")) {
+// 		pthread_mutex_unlock(philo->right_fork);
+// 		pthread_mutex_unlock(philo->left_fork);
+// 		return;
+// 	}
+// 	philo->last_meal_time = get_timestamp_ms();
+// 	smart_sleep(philo->data->args.time_to_eat, philo->data);
+
+// 	philo->meals_eaten++;
+
+// 	pthread_mutex_unlock(philo->right_fork);
+// 	pthread_mutex_unlock(philo->left_fork);
+// }
 
 void	philo_sleep(t_philo *philo)
 {
@@ -74,7 +106,7 @@ void *philo_routine(void *arg)
 
     philo->last_meal_time = get_timestamp_ms();
 
-    // Still keep the initial stagger
+    // Initial stagger for even philosophers
     if (philo->id % 2 == 0)
         usleep(1000 * (philo->data->args.time_to_eat / 2));
 
@@ -88,9 +120,9 @@ void *philo_routine(void *arg)
         }
         pthread_mutex_unlock(&philo->data->finish_mutex);
 
-        // Add: stagger for even philosophers before every meal
+        // Add stagger for even philosophers before every eating attempt
         if (philo->id % 2 == 0)
-            usleep(1000); // 1ms is usually enough, increase to 2-5ms if needed
+            usleep(1000); // 1ms delay for even philosophers
 
         philo_eat(philo);
         philo_sleep(philo);
